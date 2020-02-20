@@ -29,33 +29,62 @@ def get_soup(url, header):
         soup = BeautifulSoup(url, "html.parser")
     return soup
 
-
-def search_and_save(text_to_search, number_of_images, first_position, root_path):
+def search_google(header, text_to_search): # no more working with high quality images since 2020 update
     query = text_to_search.split()
     query = "+".join(query)
     url = "https://www.google.co.in/search?q="+query+"&source=lnms&tbm=isch"
-    header = {"User-Agent":"Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/43.0.2357.134 Safari/537.36"}
     soup = get_soup(url, header)
+
+    actualImages = [] # contains the link for Large original images, type of image
+    for a in soup.find_all("img",{"class":"rg_i"}):
+        link, extension = a.attrs["data-iurl"], a.attrs["src"]
+        extension = extension.split(";")[0]
+        if len(extension) > 0:
+            extension = extension.split("/")[1]
+        actualImages.append((link,extension))
+    
+    return actualImages
+
+def search_bing(header, text_to_search): # no more working with high quality images since 2020 update
+    query = text_to_search.split()
+    query = "+".join(query)
+    url = "https://www.bing.com/images/search?q="+query
+    soup = get_soup(url, header)
+
+    actualImages = [] # contains the link for Large original images, type of image
+    for a in soup.find_all("a",{"class":"iusc"}):
+        #meta = a.attrs["m"].split(",")
+        meta = json.loads(a.attrs["m"])
+        link = meta["murl"].split("?")[0]
+        extensionIndex = link.rfind(".") + 1
+        if extensionIndex > -1:
+            extension = link[extensionIndex:]
+        else:
+            extension = ""
+        actualImages.append((link,extension))
+    
+    return actualImages
+
+def search_and_save(text_to_search, number_of_images, first_position, root_path):    
+    header = {"User-Agent":"Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/43.0.2357.134 Safari/537.36"}
 
     path = root_path + text_to_search.replace(" ", "_")
     if not os.path.exists(path):
         os.makedirs(path)
 
-    ActualImages = [] # contains the link for Large original images, type of image
-    for a in soup.find_all("div",{"class":"rg_meta"}):
-        link, Type = json.loads(a.text)["ou"], json.loads(a.text)["ity"]
-        ActualImages.append((link,Type))
-    for i, (img, Type) in enumerate(ActualImages[first_position:first_position+number_of_images]):
+    #actualImages = search_google(header, text_to_search)
+    actualImages = search_bing(header, text_to_search)
+    for i, (img, extension) in enumerate(actualImages[first_position:first_position+number_of_images]):
         try:
             req = Request(img, headers=header)
             print("Opening image N°", i, ": ", img)
             with urlopen(req, timeout=HTTP_TIMEOUT) as urlimage:
                 raw_img = urlimage.read()
                 print("Image read")
-            if len(Type) == 0:
+            if len(extension) == 0:
                 f = open(os.path.join(path , "img" + "_" + str(i) + ".jpg"), "wb")
             else:
-                f = open(os.path.join(path , "img" + "_" + str(i) + "." + Type), "wb")
+                f = open(os.path.join(path , "img" + "_" + str(i) + "." + extension), "wb")
             f.write(raw_img)
             f.close()
         except Exception as e:
@@ -78,8 +107,9 @@ def main(args):
         save_directory = args.directory
     else:
         # if no command line parameter, directly use these parameters:
-        query = ["gazelle thomson", "gazelle grant", "monkey", "giraffe",
-                   "lion", "leopard", "elephant", "rhinoceros", "hyppopotame"]
+        #query = ["gazelle thomson", "gazelle grant", "monkey", "giraffe",
+        #           "lion", "leopard", "elephant", "rhinoceros", "hyppopotame"]
+        query = ["gazelle thomson"]
         max_images = 100
         first_image_index = 0
         save_directory = "dataset/"
