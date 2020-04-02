@@ -9,7 +9,7 @@ Construit pour illustrer les TD sur Git, Python et Deep Learning du module S8-OP
 
 * Notepad++ ou autre éditeur de texte brut
 * Firefox
-* Gecko Driver (Optionnel - pour faire du Web scraping avec Python et Firefox en prenant le contrôle du navigateur) : https://github.com/mozilla/geckodriver/releases
+* Gecko Driver 0.26 (pour faire du Web scraping avec Python et Firefox en prenant le contrôle du navigateur) : https://github.com/mozilla/geckodriver/releases
 * Git 2.21.0 or higher
 * Python 3.7.2 or higher in Anaconda
 * Spyder Python IDE in Anaconda
