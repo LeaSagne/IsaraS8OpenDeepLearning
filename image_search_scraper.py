@@ -14,11 +14,16 @@ _ or directly setting the parameters in the main method and starting the script 
 
 """
 
+from selenium import webdriver
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.firefox.options import Options
 from bs4 import BeautifulSoup
 from urllib.request import urlopen, Request
+import base64
 import os
 import argparse
 import json
+import time
 
 
 HTTP_TIMEOUT = 10 #seconds
@@ -45,7 +50,41 @@ def search_google(header, text_to_search): # no more working with high quality i
     
     return actualImages
 
-def search_bing(header, text_to_search): # no more working with high quality images since 2020 update
+def search_google_selenium(header, text_to_search):
+    query = text_to_search.split()
+    query = "+".join(query)
+    url = "https://www.google.co.in/search?q="+query+"&source=lnms&tbm=isch"
+
+    options = Options()
+    options.headless = True
+    driver = webdriver.Firefox(options=options)
+    driver.get(url)
+    headers = {}
+    headers['User-Agent'] = "Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36"
+    extensions = {"jpg", "jpeg", "png", "gif"}
+
+    # for __ in range(10):
+    #     # Multiple scrolls needed to show all 400 images
+    #     driver.execute_script("window.scrollBy(0, 1000000)")
+    #     time.sleep(0.2)
+
+    actualImages = []
+    images = driver.find_elements_by_xpath('//img[contains(@class,"rg_i")]')
+
+    for image in images:
+        link = image.get_attribute("src")
+        if link is not None:
+            if link.startswith("data:image/jpeg;base64,"):
+                link = link[len("data:image/jpeg;base64,"):]
+                extension = "data:image/jpeg;base64"            
+            else:
+                extension = "jpg"
+            actualImages.append((link, extension))
+    
+    driver.quit()
+    return actualImages
+
+def search_bing(header, text_to_search): # not working
     query = text_to_search.split()
     query = "+".join(query)
     url = "https://www.bing.com/images/search?q="+query
@@ -65,6 +104,47 @@ def search_bing(header, text_to_search): # no more working with high quality ima
     
     return actualImages
 
+def search_qwant(header, text_to_search): # not working
+    query = text_to_search.split()
+    query = "%20".join(query)
+    url = "https://www.qwant.com/?q=" + query + "&t=images"
+    soup = get_soup(url, header)
+
+    actualImages = [] # contains the link for Large original images, type of image
+    for a in soup.find_all("div",{"class":"result result--images"}):
+        #meta = a.attrs["m"].split(",")
+        meta = json.loads(a.attrs["m"])
+        link = meta["murl"].split("?")[0]
+        extensionIndex = link.rfind(".") + 1
+        if extensionIndex > -1:
+            extension = link[extensionIndex:]
+        else:
+            extension = ""
+        actualImages.append((link, extension))
+    
+    return actualImages
+
+def search_duck(header, text_to_search): # not working
+    query = text_to_search.split()
+    query = "+".join(query)
+    url = "https://duckduckgo.com/?q=" + query + "&t=hr&iar=images&iax=images&ia=images"
+    soup = get_soup(url, header)
+
+    actualImages = [] # contains the link for Large original images, type of image
+    for a in soup.find_all("div",{"class":"tile-wrap"}):
+        #meta = a.attrs["m"].split(",")
+        meta = json.loads(a.attrs["m"])
+        link = meta["murl"].split("?")[0]
+        extensionIndex = link.rfind(".") + 1
+        if extensionIndex > -1:
+            extension = link[extensionIndex:]
+        else:
+            extension = ""
+        actualImages.append((link, extension))
+    
+    return actualImages
+
+
 def search_and_save(text_to_search, number_of_images, first_position, root_path):    
     header = {"User-Agent":"Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/43.0.2357.134 Safari/537.36"}
 
@@ -73,14 +153,23 @@ def search_and_save(text_to_search, number_of_images, first_position, root_path)
         os.makedirs(path)
 
     #actualImages = search_google(header, text_to_search)
-    actualImages = search_bing(header, text_to_search)
+    actualImages = search_google_selenium(header, text_to_search)
+    #actualImages = search_bing(header, text_to_search)
+    #actualImages = search_qwant(header, text_to_search)
+    #actualImages = search_duck(header, text_to_search)
     for i, (img, extension) in enumerate(actualImages[first_position:first_position+number_of_images]):
         try:
-            req = Request(img, headers=header)
-            print("Opening image N°", i, ": ", img)
-            with urlopen(req, timeout=HTTP_TIMEOUT) as urlimage:
-                raw_img = urlimage.read()
-                print("Image read")
+            if extension == "data:image/jpeg;base64":
+                print("Converting image N°", i)
+                raw_img = base64.b64decode (img)
+                extension = "jpg"
+            else:
+                req = Request(img, headers=header)
+                print("Opening image N°", i, ": ", img)
+                with urlopen(req, timeout=HTTP_TIMEOUT) as urlimage:
+                    raw_img = urlimage.read()
+                    print("Image read")
+
             if len(extension) == 0:
                 f = open(os.path.join(path , "img" + "_" + str(i) + ".jpg"), "wb")
             else:
