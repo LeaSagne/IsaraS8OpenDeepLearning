@@ -6,7 +6,10 @@ Created on Wed Mar 20 16:51:25 2019
 
 Adapted for Python 3
 Original work: https://gist.github.com/genekogan/ebd77196e4bf0705db51f86431099e57
-adapted from http://stackoverflow.com/questions/20716842/python-download-images-from-google-image-search
+Also adapted from:
+_ http://stackoverflow.com/questions/20716842/python-download-images-from-google-image-search
+_ http://penseeartificielle.fr/massive-google-image-scraping/
+
 
 Usage examples :
 _ by command line : python image_search_scraper.py --search "cat" --nb_images 10 --directory "dataset/"
@@ -34,7 +37,7 @@ def get_soup(url, header):
         soup = BeautifulSoup(url, "html.parser")
     return soup
 
-def search_google(header, text_to_search): # no more working with high quality images since 2020 update
+def search_google(header, text_to_search): # no more working since 2020 update
     query = text_to_search.split()
     query = "+".join(query)
     url = "https://www.google.co.in/search?q="+query+"&source=lnms&tbm=isch"
@@ -51,10 +54,12 @@ def search_google(header, text_to_search): # no more working with high quality i
     return actualImages
 
 def search_google_selenium(header, text_to_search):
+    # Preparing request
     query = text_to_search.split()
     query = "+".join(query)
     url = "https://www.google.co.in/search?q="+query+"&source=lnms&tbm=isch"
 
+    # Loading the page with Firefox (via Selenium)
     options = Options()
     options.headless = True
     driver = webdriver.Firefox(options=options)
@@ -63,14 +68,16 @@ def search_google_selenium(header, text_to_search):
     headers['User-Agent'] = "Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36"
     extensions = {"jpg", "jpeg", "png", "gif"}
 
-    # for __ in range(10):
-    #     # Multiple scrolls needed to show all 400 images
-    #     driver.execute_script("window.scrollBy(0, 1000000)")
-    #     time.sleep(0.2)
+    # Multiple scrolls needed to show all 400 images
+    for __ in range(10):        
+        driver.execute_script("window.scrollBy(0, 1000000)")
+        time.sleep(0.2)
 
+    # Searching in the page for image tags
     actualImages = []
     images = driver.find_elements_by_xpath('//img[contains(@class,"rg_i")]')
 
+    # Getting image data
     for image in images:
         link = image.get_attribute("src")
         if link is not None:
@@ -148,28 +155,35 @@ def search_duck(header, text_to_search): # not working
 def search_and_save(text_to_search, number_of_images, first_position, root_path):    
     header = {"User-Agent":"Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/43.0.2357.134 Safari/537.36"}
 
+    # Creating a folder for the images
     path = root_path + text_to_search.replace(" ", "_")
     if not os.path.exists(path):
         os.makedirs(path)
 
+    # Selecting a search engin
     #actualImages = search_google(header, text_to_search)
     actualImages = search_google_selenium(header, text_to_search)
     #actualImages = search_bing(header, text_to_search)
     #actualImages = search_qwant(header, text_to_search)
     #actualImages = search_duck(header, text_to_search)
+
+    # Writing image files from the results
     for i, (img, extension) in enumerate(actualImages[first_position:first_position+number_of_images]):
         try:
             if extension == "data:image/jpeg;base64":
+                # Image raw data already in the result
                 print("Converting image N°", i)
                 raw_img = base64.b64decode (img)
                 extension = "jpg"
             else:
+                # The result is an url of an image to be downloaded
                 req = Request(img, headers=header)
                 print("Opening image N°", i, ": ", img)
                 with urlopen(req, timeout=HTTP_TIMEOUT) as urlimage:
                     raw_img = urlimage.read()
                     print("Image read")
 
+            # Writing the image file on disk
             if len(extension) == 0:
                 f = open(os.path.join(path , "img" + "_" + str(i) + ".jpg"), "wb")
             else:
