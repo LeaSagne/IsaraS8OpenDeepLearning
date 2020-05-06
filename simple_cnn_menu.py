@@ -274,21 +274,22 @@ def stats(classifier, base_dataset_path):
     found = 0
 
     for category in os.listdir(base_dataset_path):
-        sub_path = os.path.join(base_dataset_path, category)
-        subtotal = 0
-        subfound = 0
-        images = image_files(sub_path, recursive=True)
-        for img in images:
-            test_image = image.load_img(img, target_size = (64, 64))
-            test_image = image.img_to_array(test_image)
-            test_image = np.expand_dims(test_image, axis = 0)
-            result, categories = classifier.predict(test_image)
-            if category in categories:
-                subfound += 1
-                found += 1
-            subtotal +=1
-            total +=1
-        print(category, " : ", subfound, "/", subtotal, "(", int(subfound*100/subtotal) , "%)")
+        if not category.startswith("."):
+            sub_path = os.path.join(base_dataset_path, category)
+            subtotal = 0
+            subfound = 0
+            images = image_files(sub_path, recursive=True)
+            for img in images:
+                test_image = image.load_img(img, target_size = (64, 64))
+                test_image = image.img_to_array(test_image)
+                test_image = np.expand_dims(test_image, axis = 0)
+                result, categories = classifier.predict(test_image)
+                if category in categories:
+                    subfound += 1
+                    found += 1
+                subtotal +=1
+                total +=1
+            print(category, " : ", subfound, "/", subtotal, "(", int(subfound*100/subtotal) , "%)")
     print("Global : ", found, "/", total, "(", int(found*100/total) , "%)")
 
 #def predict_url(test_image_path):
