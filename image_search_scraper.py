@@ -38,7 +38,7 @@ def get_soup(url, header):
     return soup
 
 def search_google(header, text_to_search): # no more working since 2020 update
-    query = text_to_search.split()
+    query = text_to_search.split( " leopard ")
     query = "+".join(query)
     url = "https://www.google.co.in/search?q="+query+"&source=lnms&tbm=isch"
     soup = get_soup(url, header)
